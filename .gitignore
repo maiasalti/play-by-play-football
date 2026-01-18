@@ -1,0 +1,28 @@
+# System files
+.DS_Store
+.cache/
+
+# Logs
+*.log
+
+# Local development
+node_modules/
+.env
+.env.local
+
+# Netlify
+.netlify/
+
+# Python (if preprocessing)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editor
+.vscode/
+.idea/
+
+# Keep these files
+!.gitignore
+!netlify.toml

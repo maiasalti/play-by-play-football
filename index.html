@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFL Live Game Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Main App Container -->
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>NFL Live Game Simulator</h1>
+            <button id="backBtn" class="btn btn-secondary" style="display: none;">Back</button>
+            <button id="refreshBtn" class="btn btn-primary">Refresh</button>
+        </header>
+
+        <!-- Game Selection Screen -->
+        <div id="gameSelectionScreen" class="screen active">
+            <div class="screen-header">
+                <h2>Live Games</h2>
+                <p id="gameDate" class="date-display"></p>
+            </div>
+            <div id="gamesContainer" class="games-container">
+                <div class="loading">Loading games...</div>
+            </div>
+        </div>
+
+        <!-- Game View Screen -->
+        <div id="gameViewScreen" class="screen">
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class="tab-btn active" data-tab="overview">Overview</button>
+                <button class="tab-btn" data-tab="probabilities">Probabilities</button>
+            </div>
+
+            <!-- Tab Content Container -->
+            <div class="tab-content-container">
+                <!-- Overview Tab -->
+                <div id="overviewTab" class="tab-content active">
+
+            <!-- TV-Style Football Field Display -->
+            <div id="gameStateContainer" class="tv-broadcast-container">
+                <!-- Football Field -->
+                <div class="football-field">
+                    <!-- End Zone - Away Team -->
+                    <div class="endzone endzone-away" id="endzoneAway">
+                        <div class="endzone-text" id="endzoneAwayText">AWAY</div>
+                    </div>
+
+                    <!-- Field with yard lines -->
+                    <div class="field-area">
+                        <!-- Yard line markers -->
+                        <div class="yard-markers">
+                            <div class="yard-line" data-yard="0"><span>G</span></div>
+                            <div class="yard-line" data-yard="10"><span>10</span></div>
+                            <div class="yard-line" data-yard="20"><span>20</span></div>
+                            <div class="yard-line" data-yard="30"><span>30</span></div>
+                            <div class="yard-line" data-yard="40"><span>40</span></div>
+                            <div class="yard-line midfield" data-yard="50"><span>50</span></div>
+                            <div class="yard-line" data-yard="60"><span>40</span></div>
+                            <div class="yard-line" data-yard="70"><span>30</span></div>
+                            <div class="yard-line" data-yard="80"><span>20</span></div>
+                            <div class="yard-line" data-yard="90"><span>10</span></div>
+                            <div class="yard-line" data-yard="100"><span>G</span></div>
+                        </div>
+
+                        <!-- Team logos and ball -->
+                        <div class="field-elements">
+                            <!-- Away team logo (fixed position) -->
+                            <div class="team-logo-field away-logo-field" id="awayLogoField">
+                                <img id="awayLogoFieldImg" src="" alt="Away">
+                            </div>
+
+                            <!-- Home team logo (fixed position) -->
+                            <div class="team-logo-field home-logo-field" id="homeLogoField">
+                                <img id="homeLogoFieldImg" src="" alt="Home">
+                            </div>
+
+                            <!-- Offensive team logo (positioned at ball location) -->
+                            <div class="offensive-team-marker" id="offensiveMarker">
+                                <img id="offensiveTeamLogo" src="" alt="Offense">
+                                <div class="football-icon">🏈</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- End Zone - Home Team -->
+                    <div class="endzone endzone-home" id="endzoneHome">
+                        <div class="endzone-text" id="endzoneHomeText">HOME</div>
+                    </div>
+                </div>
+
+                <!-- TV-Style Score Overlay (bottom of screen) -->
+                <div class="tv-scoreboard">
+                    <div class="scoreboard-left">
+                        <div class="team-info away-team-info">
+                            <img id="awayTeamLogoScore" class="team-logo-score" src="" alt="Away">
+                            <span class="team-abbr" id="awayTeamAbbrScore">AWAY</span>
+                            <span class="team-score-tv" id="awayScoreTV">0</span>
+                        </div>
+                    </div>
+
+                    <div class="scoreboard-center">
+                        <div class="game-clock">
+                            <span id="quarterTV">Q1</span>
+                            <span class="clock-separator">•</span>
+                            <span id="clockTV">15:00</span>
+                        </div>
+                        <div class="down-info">
+                            <span id="downDistanceTV">1st & 10</span>
+                            <span class="field-pos-separator">•</span>
+                            <span id="fieldPositionTV">50</span>
+                        </div>
+                    </div>
+
+                    <div class="scoreboard-right">
+                        <div class="team-info home-team-info">
+                            <span class="team-score-tv" id="homeScoreTV">0</span>
+                            <span class="team-abbr" id="homeTeamAbbrScore">HOME</span>
+                            <img id="homeTeamLogoScore" class="team-logo-score" src="" alt="Home">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Last Play Display -->
+            <div id="lastPlayContainer" class="last-play-container">
+                <h3>Last Play</h3>
+                <div id="lastPlayContent" class="last-play-content">
+                    <div class="last-play-epa">
+                        <span class="epa-label">EPA:</span>
+                        <span id="lastPlayEPA" class="epa-value">--</span>
+                    </div>
+                    <div id="lastPlayPlayers" class="last-play-players">
+                        <div class="loading">Waiting for play data...</div>
+                    </div>
+                    <div id="lastPlayDescription" class="last-play-description">
+                        <p id="lastPlayText">No recent plays</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Plays -->
+            <div id="playsContainer" class="plays-container">
+                <h3>Recent Plays</h3>
+                <div id="playsContent" class="plays-list">
+                    <div class="loading">Loading plays...</div>
+                </div>
+            </div>
+        </div><!-- End Overview Tab -->
+
+        <!-- Probabilities Tab -->
+        <div id="probabilitiesTab" class="tab-content">
+            <!-- Win Probability Section -->
+            <div id="winProbabilityContainer" class="stats-section-container">
+                <h2>Win Probability</h2>
+                <div id="winProbabilityContent" class="stats-content">
+                    <div class="loading">Calculating...</div>
+                </div>
+            </div>
+
+            <!-- Team Selection -->
+            <div class="team-focus-container">
+                <label>Analyze Team:</label>
+                <div class="team-toggle">
+                    <button id="teamToggleHome" class="team-toggle-btn active">Home Team</button>
+                    <button id="teamToggleAway" class="team-toggle-btn">Away Team</button>
+                </div>
+            </div>
+
+            <!-- General Game Statistics -->
+            <div id="generalStatsContainer" class="stats-section-container">
+                <h2>General Game Statistics</h2>
+                <div id="generalStatsContent" class="stats-content">
+                    <div class="loading">Loading statistics...</div>
+                </div>
+            </div>
+
+            <!-- Situation Probabilities -->
+            <div id="situationProbsContainer" class="stats-section-container">
+                <h2>Current Situation Analysis</h2>
+                <p class="stats-explanation">
+                    These probabilities are calculated using historical NFL data from the current season.
+                    We analyze thousands of similar game situations (down, distance, field position) to predict outcomes.
+                </p>
+                <div id="situationProbsContent" class="stats-content">
+                    <div class="loading">Calculating probabilities...</div>
+                </div>
+            </div>
+
+            <!-- League vs Team Comparison -->
+            <div id="comparisonContainer" class="stats-section-container">
+                <h2>League Average vs Team Performance</h2>
+                <p class="stats-explanation">
+                    Comparison of selected team's season performance against league-wide averages.
+                    Team stats weighted 70% (current season form) + 30% league average (regression to mean).
+                </p>
+                <div id="comparisonContent" class="stats-content">
+                    <div class="loading">Loading comparison...</div>
+                </div>
+            </div>
+
+            <!-- Player Impact Analysis -->
+            <div id="playerImpactContainer" class="stats-section-container">
+                <h2>Key Player Impact</h2>
+                <p class="stats-explanation">
+                    How individual players affect success probability based on their season performance.
+                </p>
+                <div id="playerImpactContent" class="stats-content">
+                    <div class="loading">Analyzing players...</div>
+                </div>
+            </div>
+        </div><!-- End Probabilities Tab -->
+
+            </div><!-- End tab-content-container -->
+        </div><!-- End gameViewScreen -->
+    </div>
+
+    <!-- Player Modal -->
+    <div id="playerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="playerName">Player Name</h2>
+                <button id="closeModal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="player-info">
+                    <span id="playerPosition" class="player-position">WR</span>
+                    <span id="playerTeam" class="player-team">Team</span>
+                </div>
+
+                <div class="stats-section">
+                    <h3>Season Stats (2025)</h3>
+                    <div id="seasonStats" class="stats-grid">
+                        <div class="loading">Loading stats...</div>
+                    </div>
+                </div>
+
+                <div class="stats-section">
+                    <h3>Today's Game</h3>
+                    <div id="gameStats" class="stats-grid">
+                        <div class="loading">Loading stats...</div>
+                    </div>
+                </div>
+
+                <div class="probability-impact-section">
+                    <h3>Impact on Success Probability</h3>
+                    <div id="playerProbability" class="probability-impact">
+                        <div class="loading">Calculating...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning/Info Banners -->
+    <div id="bannerContainer" class="banner-container"></div>
+
+    <!-- Scripts -->
+    <script src="utils.js?v=15"></script>
+    <script src="storage.js?v=15"></script>
+    <script src="api.js?v=15"></script>
+    <script src="probabilities.js?v=15"></script>
+    <script src="app.js?v=15"></script>
+</body>
+</html>
