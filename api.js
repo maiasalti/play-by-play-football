@@ -3,11 +3,21 @@
 
 // Auto-detect environment and use appropriate CORS proxy
 // Local: http://localhost:8001 (Python proxy server)
-// Production: /.netlify/functions/cors-proxy (Netlify Function)
+// Netlify: /.netlify/functions/cors-proxy
+// Azure: /api/cors-proxy
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const CORS_PROXY = isLocalhost
-    ? 'http://localhost:8001/?url='
-    : '/.netlify/functions/cors-proxy?url=';
+const isAzure = window.location.hostname.includes('azurestaticapps.net');
+const isNetlify = window.location.hostname.includes('netlify.app');
+
+let CORS_PROXY;
+if (isLocalhost) {
+    CORS_PROXY = 'http://localhost:8001/?url=';
+} else if (isAzure) {
+    CORS_PROXY = '/api/cors-proxy?url=';
+} else {
+    // Default to Netlify or custom domain with Netlify
+    CORS_PROXY = '/.netlify/functions/cors-proxy?url=';
+}
 
 // ESPN API Endpoints
 const ESPN_API = {
