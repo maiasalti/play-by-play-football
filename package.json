@@ -1,0 +1,10 @@
+{
+  "name": "nfl-live-simulator",
+  "version": "1.0.0",
+  "description": "NFL Live Game Simulator - Real-time game tracking with probabilities",
+  "private": true,
+  "scripts": {},
+  "keywords": ["nfl", "sports", "analytics"],
+  "author": "",
+  "license": "MIT"
+}
