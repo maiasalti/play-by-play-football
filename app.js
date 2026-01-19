@@ -235,10 +235,11 @@ function createGameCard(game) {
  */
 async function loadGameViewScreen(gameId) {
     try {
-        // Fetch BOTH scoreboard (for situation) and summary (for detailed stats)
-        const [scoreboardData, summaryData] = await Promise.all([
+        // Fetch scoreboard, summary, AND play-by-play for most accurate data
+        const [scoreboardData, summaryData, playData] = await Promise.all([
             fetchLiveGames(),
-            fetchGameSummary(gameId)
+            fetchGameSummary(gameId),
+            fetchPlayByPlay(gameId, 20)
         ]);
 
         // Find this game in scoreboard to get situation data
@@ -287,6 +288,23 @@ async function loadGameViewScreen(gameId) {
             gameState.status.clock = scoreboardGame.status.displayClock;
         }
 
+        // If no lastPlay from scoreboard, use most recent play from play-by-play
+        if (!gameState.lastPlay || !gameState.lastPlay.text) {
+            const plays = parsePlayByPlay(playData);
+            if (plays.length > 0) {
+                const mostRecentPlay = plays[0]; // Already reversed, so first is most recent
+                gameState.lastPlay = {
+                    text: mostRecentPlay.text,
+                    shortText: mostRecentPlay.shortText,
+                    probability: { EPA: 0 }, // EPA not available from this endpoint
+                    team: null,
+                    end: {
+                        yardLine: mostRecentPlay.yardLine + mostRecentPlay.yardsGained
+                    }
+                };
+            }
+        }
+
         // Store game state
         appState.lastGameState = gameState;
 
@@ -300,8 +318,8 @@ async function loadGameViewScreen(gameId) {
         // Render last play with EPA and player info
         renderLastPlay(gameState, homeRoster, awayRoster);
 
-        // Render recent plays
-        await renderRecentPlays(gameId);
+        // Render recent plays (use already fetched data)
+        renderRecentPlaysFromData(playData, homeRoster, awayRoster);
 
         // Setup team toggle buttons (for probabilities tab)
         setupTeamToggles();
@@ -341,8 +359,14 @@ function renderGameState(gameState) {
     // Update team logos on scoreboard
     const awayLogoScore = document.getElementById('awayTeamLogoScore');
     const homeLogoScore = document.getElementById('homeTeamLogoScore');
-    if (awayLogoScore) awayLogoScore.src = gameState.awayTeam.logo || '';
-    if (homeLogoScore) homeLogoScore.src = gameState.homeTeam.logo || '';
+    if (awayLogoScore) {
+        awayLogoScore.src = getTeamLogoUrl(gameState.awayTeam);
+        awayLogoScore.onerror = function() { this.style.display = 'none'; };
+    }
+    if (homeLogoScore) {
+        homeLogoScore.src = getTeamLogoUrl(gameState.homeTeam);
+        homeLogoScore.onerror = function() { this.style.display = 'none'; };
+    }
 
     // Update down & distance on TV scoreboard
     let downDistanceText = 'Kickoff';
@@ -372,12 +396,14 @@ function renderGameState(gameState) {
     const awayFieldLogo = document.getElementById('awayLogoFieldImg');
     const homeFieldLogo = document.getElementById('homeLogoFieldImg');
     if (awayFieldLogo) {
-        awayFieldLogo.src = gameState.awayTeam.logo || '';
+        awayFieldLogo.src = getTeamLogoUrl(gameState.awayTeam);
         awayFieldLogo.alt = gameState.awayTeam.abbreviation;
+        awayFieldLogo.onerror = function() { this.style.display = 'none'; };
     }
     if (homeFieldLogo) {
-        homeFieldLogo.src = gameState.homeTeam.logo || '';
+        homeFieldLogo.src = getTeamLogoUrl(gameState.homeTeam);
         homeFieldLogo.alt = gameState.homeTeam.abbreviation;
+        homeFieldLogo.onerror = function() { this.style.display = 'none'; };
     }
 
     // Position the offensive team marker at ball location
@@ -412,8 +438,9 @@ function updateFieldVisual(gameState) {
     // Set offensive team logo
     const logoElement = document.getElementById('offensiveTeamLogo');
     if (offensiveTeam && logoElement) {
-        logoElement.src = offensiveTeam.logo;
+        logoElement.src = getTeamLogoUrl(offensiveTeam);
         logoElement.alt = offensiveTeam.abbreviation;
+        logoElement.onerror = function() { this.style.display = 'none'; };
     }
 
     // Calculate ball position on field (0-100 yards)
@@ -578,15 +605,23 @@ async function renderPlayers(gameState) {
  */
 function createPlayerCard(player) {
     const card = createElement('div', {
-        className: 'player-card',
+        className: 'player-card has-tooltip',
         events: {
             click: () => showPlayerModal(player)
         }
     });
 
+    // Get tooltip stats based on player position
+    const tooltipStats = getTooltipStats(player);
+
     card.innerHTML = `
         <div class="player-card-name">${escapeHtml(player.shortName || player.name)}</div>
         <div class="player-card-position">${escapeHtml(player.position)}</div>
+        <div class="player-tooltip">
+            <div class="tooltip-header">${escapeHtml(player.name)}</div>
+            <div class="tooltip-position">${escapeHtml(player.position)} ${player.jersey ? '#' + player.jersey : ''}</div>
+            <div class="tooltip-stats">${tooltipStats}</div>
+        </div>
     `;
 
     return card;
@@ -727,16 +762,24 @@ function renderLastPlay(gameState, homeRoster = [], awayRoster = []) {
         if (displayPlayers.length === 0) {
             playersHtml = '<div class="empty-state">No players in this focus mode</div>';
         } else {
-            playersHtml = displayPlayers.map(player => `
-                <div class="player-card ${player.role}">
+            playersHtml = displayPlayers.map(player => {
+                // Get tooltip stats for this player
+                const tooltipStats = getTooltipStatsFromId(player.id, homeRoster, awayRoster);
+                return `
+                <div class="player-card ${player.role} has-tooltip">
                     <img src="${escapeHtml(player.headshot)}"
                          alt="${escapeHtml(player.name)}"
                          class="player-headshot"
                          onerror="this.src='https://a.espncdn.com/combiner/i?img=/i/headshots/nophoto.png&w=80&h=80'">
                     <span class="player-name">${escapeHtml(player.name)}</span>
                     <span class="player-role">${escapeHtml(player.action || player.role)}</span>
+                    <div class="player-tooltip">
+                        <div class="tooltip-header">${escapeHtml(player.name)}</div>
+                        <div class="tooltip-position">${escapeHtml(player.action || player.role)}</div>
+                        <div class="tooltip-stats">${tooltipStats}</div>
+                    </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
     }
 
@@ -1477,21 +1520,17 @@ function renderPlayerImpact(gameState, teamRoster, teamAbbr) {
 async function renderRecentPlays(gameId) {
     const container = document.getElementById('playsContent');
 
+    // Get rosters from last game state for player extraction
+    let homeRoster = [];
+    let awayRoster = [];
+    if (appState.lastGameState && appState.lastGameState.rawData) {
+        homeRoster = extractRoster(appState.lastGameState.rawData, appState.lastGameState.homeTeam.id);
+        awayRoster = extractRoster(appState.lastGameState.rawData, appState.lastGameState.awayTeam.id);
+    }
+
     try {
         const playData = await fetchPlayByPlay(gameId, 20);
-        const plays = parsePlayByPlay(playData);
-
-        if (plays.length === 0) {
-            container.innerHTML = '<div class="empty-state">No plays yet</div>';
-            return;
-        }
-
-        // Render plays
-        container.innerHTML = '';
-        plays.forEach(play => {
-            const playItem = createPlayItem(play);
-            container.appendChild(playItem);
-        });
+        renderRecentPlaysFromData(playData, homeRoster, awayRoster);
     } catch (error) {
         logError('Failed to render plays', error);
         container.innerHTML = '<div class="empty-state">Failed to load plays</div>';
@@ -1499,22 +1538,68 @@ async function renderRecentPlays(gameId) {
 }
 
 /**
+ * Render recent plays from already-fetched data
+ * @param {Object} playData - Play-by-play data from API
+ * @param {Array} homeRoster - Home team roster
+ * @param {Array} awayRoster - Away team roster
+ */
+function renderRecentPlaysFromData(playData, homeRoster = [], awayRoster = []) {
+    const container = document.getElementById('playsContent');
+
+    const plays = parsePlayByPlay(playData);
+
+    if (plays.length === 0) {
+        container.innerHTML = '<div class="empty-state">No plays yet</div>';
+        return;
+    }
+
+    // Render plays
+    container.innerHTML = '';
+    plays.forEach(play => {
+        const playItem = createPlayItem(play, homeRoster, awayRoster);
+        container.appendChild(playItem);
+    });
+}
+
+/**
  * Create play item element
  * @param {Object} play - Play data
+ * @param {Array} homeRoster - Home team roster
+ * @param {Array} awayRoster - Away team roster
  * @returns {HTMLElement} Play item element
  */
-function createPlayItem(play) {
+function createPlayItem(play, homeRoster = [], awayRoster = []) {
     const item = createElement('div', {
         className: 'play-item'
     });
 
     const downText = play.down > 0 ? `${getOrdinal(play.down)} & ${play.distance}` : '';
 
+    // Extract players involved in this play
+    const playersInvolved = extractPlayersFromText(play.text || '', homeRoster, awayRoster);
+
+    // Build players HTML (compact version for play list)
+    let playersHtml = '';
+    if (playersInvolved.length > 0) {
+        playersHtml = '<div class="play-item-players">' +
+            playersInvolved.slice(0, 3).map(player => `
+                <div class="play-item-player ${player.role}">
+                    <img src="${escapeHtml(player.headshot)}"
+                         alt="${escapeHtml(player.name)}"
+                         class="play-item-headshot"
+                         onerror="this.src='https://a.espncdn.com/combiner/i?img=/i/headshots/nophoto.png&w=80&h=80'">
+                    <span class="play-item-player-name">${escapeHtml(player.name.split(' ').pop())}</span>
+                </div>
+            `).join('') +
+            '</div>';
+    }
+
     item.innerHTML = `
         <div class="play-item-header">
             <span>Q${play.period} ${escapeHtml(play.clock)}</span>
             <span>${escapeHtml(downText)}</span>
         </div>
+        ${playersHtml}
         <div class="play-item-text">${escapeHtml(play.text)}</div>
     `;
 
@@ -1565,11 +1650,11 @@ function startAutoRefresh(gameId) {
         clearInterval(appState.refreshInterval);
     }
 
-    log('Starting auto-refresh (30s interval)');
+    log('Starting auto-refresh (15s interval)');
 
     appState.refreshInterval = setInterval(async () => {
         await autoRefresh(gameId);
-    }, 30 * 1000); // 30 seconds
+    }, 15 * 1000); // 15 seconds for live games
 }
 
 /**
@@ -1591,10 +1676,11 @@ async function autoRefresh(gameId) {
     try {
         log('Auto-refreshing game data');
 
-        // Fetch both scoreboard and summary (scoreboard has situation data)
-        const [scoreboardData, summaryData] = await Promise.all([
+        // Fetch scoreboard, summary, AND play-by-play for most accurate data
+        const [scoreboardData, summaryData, playData] = await Promise.all([
             fetchLiveGames(),
-            fetchGameSummary(gameId)
+            fetchGameSummary(gameId),
+            fetchPlayByPlay(gameId, 20)
         ]);
 
         const newGameState = parseGameState(summaryData);
@@ -1642,6 +1728,23 @@ async function autoRefresh(gameId) {
             newGameState.status.clock = scoreboardGame.status.displayClock;
         }
 
+        // If no lastPlay from scoreboard, use most recent play from play-by-play
+        if (!newGameState.lastPlay || !newGameState.lastPlay.text) {
+            const plays = parsePlayByPlay(playData);
+            if (plays.length > 0) {
+                const mostRecentPlay = plays[0]; // Already reversed, so first is most recent
+                newGameState.lastPlay = {
+                    text: mostRecentPlay.text,
+                    shortText: mostRecentPlay.shortText,
+                    probability: { EPA: 0 },
+                    team: null,
+                    end: {
+                        yardLine: mostRecentPlay.yardLine + mostRecentPlay.yardsGained
+                    }
+                };
+            }
+        }
+
         // Check if state changed
         const stateChanged = hasGameStateChanged(gameId, newGameState);
 
@@ -1656,7 +1759,8 @@ async function autoRefresh(gameId) {
             const awayRoster = extractRoster(newGameState.rawData, newGameState.awayTeam.id);
             renderLastPlay(newGameState, homeRoster, awayRoster);
 
-            await renderRecentPlays(gameId);
+            // Use already fetched play data
+            renderRecentPlaysFromData(playData, homeRoster, awayRoster);
 
             // If probabilities tab is active, re-render it
             if (document.getElementById('probabilitiesTab').classList.contains('active')) {
@@ -1691,6 +1795,89 @@ async function manualRefresh() {
     } else if (appState.currentScreen === 'gameView' && appState.selectedGameId) {
         await loadGameViewScreen(appState.selectedGameId);
     }
+}
+
+/**
+ * Get team logo URL with fallback
+ * @param {Object} team - Team object with logo and abbreviation
+ * @returns {string} Logo URL
+ */
+function getTeamLogoUrl(team) {
+    if (team.logo) return team.logo;
+    if (team.abbreviation) {
+        return `https://a.espncdn.com/i/teamlogos/nfl/500/${team.abbreviation.toLowerCase()}.png`;
+    }
+    return '';
+}
+
+/**
+ * Get tooltip stats HTML based on player position
+ * @param {Object} player - Player object with stats
+ * @returns {string} HTML string for tooltip stats
+ */
+function getTooltipStats(player) {
+    if (!player || !player.stats || player.stats.length === 0) {
+        return '<span class="tooltip-no-stats">No stats yet</span>';
+    }
+
+    const position = player.position || '';
+    const stats = player.stats;
+
+    // Position groups
+    const offensivePositions = ['QB', 'RB', 'WR', 'TE', 'FB'];
+    const defensivePositions = ['LB', 'DE', 'DT', 'CB', 'S', 'MLB', 'OLB', 'ILB', 'NT', 'FS', 'SS'];
+    const specialPositions = ['K', 'P'];
+
+    let relevantStats = [];
+
+    if (offensivePositions.includes(position)) {
+        // Show offensive stats: look for yards, TDs, completions, attempts
+        relevantStats = stats.filter(s => {
+            const label = (s.label || s.name || '').toLowerCase();
+            return label.includes('yard') || label.includes('td') ||
+                   label.includes('rec') || label.includes('att') ||
+                   label.includes('comp') || label.includes('rush') ||
+                   label.includes('target');
+        }).slice(0, 3);
+    } else if (defensivePositions.includes(position)) {
+        // Show defensive stats: tackles, sacks, INTs
+        relevantStats = stats.filter(s => {
+            const label = (s.label || s.name || '').toLowerCase();
+            return label.includes('tackle') || label.includes('sack') ||
+                   label.includes('int') || label.includes('ff') ||
+                   label.includes('pd');
+        }).slice(0, 3);
+    } else if (specialPositions.includes(position)) {
+        // Show special teams stats
+        relevantStats = stats.filter(s => {
+            const label = (s.label || s.name || '').toLowerCase();
+            return label.includes('fg') || label.includes('xp') ||
+                   label.includes('punt') || label.includes('avg') ||
+                   label.includes('pts');
+        }).slice(0, 3);
+    }
+
+    // Fallback to first 3 stats if no position-specific found
+    if (relevantStats.length === 0) {
+        relevantStats = stats.slice(0, 3);
+    }
+
+    return relevantStats.map(stat =>
+        `<span class="tooltip-stat">${escapeHtml(stat.label || 'Stat')}: ${escapeHtml(stat.displayValue || '0')}</span>`
+    ).join('');
+}
+
+/**
+ * Get tooltip stats from player ID by finding player in rosters
+ * @param {string} playerId - Player ID
+ * @param {Array} homeRoster - Home team roster
+ * @param {Array} awayRoster - Away team roster
+ * @returns {string} HTML string for tooltip stats
+ */
+function getTooltipStatsFromId(playerId, homeRoster, awayRoster) {
+    const allPlayers = [...(homeRoster || []), ...(awayRoster || [])];
+    const player = allPlayers.find(p => String(p.id) === String(playerId));
+    return getTooltipStats(player);
 }
 
 // Export for debugging (if needed)

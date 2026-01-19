@@ -46,9 +46,9 @@ const ESPN_API = {
 
 // Cache TTLs (in milliseconds)
 const CACHE_TTL = {
-    SCOREBOARD: 5 * 60 * 1000,  // 5 minutes
-    GAME_SUMMARY: 30 * 1000,     // 30 seconds
-    PLAY_BY_PLAY: 30 * 1000,     // 30 seconds
+    SCOREBOARD: 15 * 1000,       // 15 seconds (was 5 min - too slow for live games)
+    GAME_SUMMARY: 15 * 1000,     // 15 seconds (was 30s)
+    PLAY_BY_PLAY: 15 * 1000,     // 15 seconds (was 30s)
     TEAMS: 24 * 60 * 60 * 1000   // 24 hours
 };
 
@@ -209,17 +209,27 @@ async function fetchGameSummary(gameId) {
 /**
  * Fetch play-by-play data
  * @param {string} gameId - Game ID
- * @param {number} limit - Number of plays to fetch
+ * @param {number} limit - Number of recent plays to return (we fetch more and slice)
  * @returns {Promise<Object>} Play-by-play data
  */
 async function fetchPlayByPlay(gameId, limit = 50) {
-    const espnUrl = `https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/${gameId}/competitions/${gameId}/plays?limit=${limit}`;
+    // ESPN API returns plays chronologically (oldest first)
+    // To get the most recent plays, we need to fetch all plays and slice
+    // Fetch up to 300 plays to cover a full game, then slice to get the most recent
+    const fetchLimit = 300;
+    const espnUrl = `https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/${gameId}/competitions/${gameId}/plays?limit=${fetchLimit}`;
     const url = CORS_PROXY + encodeURIComponent(espnUrl);
     const cacheKey = `espn:game:${gameId}:plays`;
 
     try {
         const data = await fetchFromAPI(url, cacheKey, CACHE_TTL.PLAY_BY_PLAY);
         log(`Fetched ${data.items?.length || 0} plays for game ${gameId}`);
+
+        // Slice to get only the most recent 'limit' plays
+        if (data.items && data.items.length > limit) {
+            data.items = data.items.slice(-limit);
+        }
+
         return data;
     } catch (error) {
         logError(`Failed to fetch play-by-play for ${gameId}`, error);

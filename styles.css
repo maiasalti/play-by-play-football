@@ -1356,3 +1356,129 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-tertiary);
 }
+
+/* Play Item Players */
+.play-item-players {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+}
+
+.play-item-player {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 4px 4px;
+    border-radius: 20px;
+    background-color: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
+.play-item-player.offensive {
+    border-color: var(--accent-primary);
+}
+
+.play-item-player.defensive {
+    border-color: var(--error-color);
+}
+
+.play-item-headshot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.play-item-player-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Player Tooltips */
+.has-tooltip {
+    position: relative;
+}
+
+.player-tooltip {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    min-width: 180px;
+    max-width: 250px;
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.player-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-top-color: var(--bg-primary);
+}
+
+.player-tooltip::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 9px solid transparent;
+    border-top-color: var(--border-color);
+}
+
+.has-tooltip:hover .player-tooltip {
+    display: block;
+}
+
+.tooltip-header {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+}
+
+.tooltip-position {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.tooltip-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tooltip-stat {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    padding: 4px 8px;
+    background-color: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.tooltip-no-stats {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    font-style: italic;
+}
+
+/* Hide tooltips on touch devices */
+@media (hover: none) {
+    .player-tooltip {
+        display: none !important;
+    }
+}
