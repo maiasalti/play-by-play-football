@@ -12,17 +12,27 @@ const isAzure = window.location.hostname.includes('azurestaticapps.net');
 const isNetlify = window.location.hostname.includes('netlify.app');
 
 let CORS_PROXY;
+let environment;
 if (isLocalhost) {
     CORS_PROXY = 'http://localhost:8001/?url=';
+    environment = 'localhost';
 } else if (isVercel || isAzure) {
     // Vercel and Azure both use /api/
     CORS_PROXY = '/api/cors-proxy?url=';
+    environment = isVercel ? 'vercel' : 'azure';
 } else if (isNetlify) {
     CORS_PROXY = '/.netlify/functions/cors-proxy?url=';
+    environment = 'netlify';
 } else {
     // Default to Vercel format for custom domains
     CORS_PROXY = '/api/cors-proxy?url=';
+    environment = 'custom-domain';
 }
+
+// Debug logging
+console.log('🌍 Environment detected:', environment);
+console.log('🔗 CORS Proxy URL:', CORS_PROXY);
+console.log('🖥️ Hostname:', window.location.hostname);
 
 // ESPN API Endpoints
 const ESPN_API = {
@@ -74,6 +84,7 @@ async function fetchFromAPI(url, cacheKey, cacheTTL) {
 
     try {
         log(`Fetching from API: ${url}`);
+        console.log('🔍 Full request URL:', url);
 
         const response = await fetch(url, {
             method: 'GET',
@@ -81,6 +92,8 @@ async function fetchFromAPI(url, cacheKey, cacheTTL) {
                 'Accept': 'application/json',
             }
         });
+
+        console.log('📡 Response status:', response.status, response.statusText);
 
         // Check for rate limiting
         if (response.status === 429) {
@@ -104,7 +117,10 @@ async function fetchFromAPI(url, cacheKey, cacheTTL) {
 
         // Check for other errors
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+            console.error('❌ API Error:', errorMsg);
+            console.error('❌ Failed URL:', url);
+            throw new Error(errorMsg);
         }
 
         const data = await response.json();
@@ -117,6 +133,9 @@ async function fetchFromAPI(url, cacheKey, cacheTTL) {
 
         return data;
     } catch (error) {
+        console.error('❌ API fetch failed:', error.message);
+        console.error('❌ Failed URL:', url);
+        console.error('❌ Cache key:', cacheKey);
         logError('API fetch failed', error);
 
         // Retry with exponential backoff
@@ -137,6 +156,7 @@ async function fetchFromAPI(url, cacheKey, cacheTTL) {
         }
 
         // No cache available, throw error
+        console.error('❌ No cached data available, throwing error');
         throw error;
     }
 }
