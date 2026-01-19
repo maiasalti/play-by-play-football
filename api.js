@@ -3,20 +3,25 @@
 
 // Auto-detect environment and use appropriate CORS proxy
 // Local: http://localhost:8001 (Python proxy server)
-// Netlify: /.netlify/functions/cors-proxy
+// Vercel: /api/cors-proxy
 // Azure: /api/cors-proxy
+// Netlify: /.netlify/functions/cors-proxy
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const isVercel = window.location.hostname.includes('vercel.app') || window.location.hostname === 'playbyplay.football';
 const isAzure = window.location.hostname.includes('azurestaticapps.net');
 const isNetlify = window.location.hostname.includes('netlify.app');
 
 let CORS_PROXY;
 if (isLocalhost) {
     CORS_PROXY = 'http://localhost:8001/?url=';
-} else if (isAzure) {
+} else if (isVercel || isAzure) {
+    // Vercel and Azure both use /api/
     CORS_PROXY = '/api/cors-proxy?url=';
-} else {
-    // Default to Netlify or custom domain with Netlify
+} else if (isNetlify) {
     CORS_PROXY = '/.netlify/functions/cors-proxy?url=';
+} else {
+    // Default to Vercel format for custom domains
+    CORS_PROXY = '/api/cors-proxy?url=';
 }
 
 // ESPN API Endpoints
