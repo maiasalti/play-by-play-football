@@ -16,10 +16,10 @@
       "dest": "/api/$1"
     },
     {
-      "src": "/(.*\\.(css|js|json|png|jpg|jpeg|gif|svg|ico))",
+      "src": "/(.*\\.(css|js|json|png|jpg|jpeg|gif|svg|ico|html))",
       "dest": "/$1",
       "headers": {
-        "Cache-Control": "public, max-age=86400"
+        "Cache-Control": "public, max-age=3600"
       }
     },
     {

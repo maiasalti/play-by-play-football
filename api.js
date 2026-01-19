@@ -7,7 +7,9 @@
 // Azure: /api/cors-proxy
 // Netlify: /.netlify/functions/cors-proxy
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const isVercel = window.location.hostname.includes('vercel.app') || window.location.hostname === 'playbyplay.football';
+const isVercel = window.location.hostname.includes('vercel.app') ||
+                 window.location.hostname === 'playbyplay.football' ||
+                 window.location.hostname === 'www.playbyplay.football';
 const isAzure = window.location.hostname.includes('azurestaticapps.net');
 const isNetlify = window.location.hostname.includes('netlify.app');
 
